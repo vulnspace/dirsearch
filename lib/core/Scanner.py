@@ -40,7 +40,9 @@ class Scanner(object):
         self.redirectRegExp = None
         self.invalidStatus = None
         self.dynamicParser = None
-        self.ratio = 0.98
+        # снижаем общий коэффициент совпадения
+        # с 0.98 до 0.9
+        self.ratio = 0.90
         self.redirectStatusCodes = [301, 302, 307]
         self.setup()
 
@@ -49,9 +51,13 @@ class Scanner(object):
         firstResponse = self.requester.request(firstPath)
         self.invalidStatus = firstResponse.status
 
-        if self.invalidStatus == 404:
+        # базово считалось достаточным несовпадение кода ответа
+        # для добавления в результаты
+        # теперь в любом случае пытаемся определить regexp редиректа
+        # и создаем дифф-матчилку
+        #if self.invalidStatus == 404:
             # Using the response status code is enough :-}
-            return
+            # return
 
         # look for redirects
         secondPath = RandomUtils.randString(omit=self.testPath) + self.suffix
@@ -67,7 +73,9 @@ class Scanner(object):
 
         # If response length is small, adjust ratio
         if len(firstResponse) < 2000:
-            baseRatio -= 0.1
+            baseRatio -= 0.4
+            # снижаем для небольших страниц
+            # коэффициент совпадения с 0.88 до 0.5
 
         if baseRatio < self.ratio:
             self.ratio = baseRatio
@@ -97,8 +105,9 @@ class Scanner(object):
         if self.invalidStatus == 404 and response.status == 404:
             return False
 
-        if self.invalidStatus != response.status:
-            return True
+        # не считаем результатом сразу, если не совпал код
+        #if self.invalidStatus != response.status:
+        #    return True
 
         redirectToInvalid = False
 
