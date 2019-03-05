@@ -101,7 +101,7 @@ class Scanner(object):
         regexp = "^.*{0}.*$".format(".*".join(map(re.escape, marks)))
         return regexp
 
-    def scan(self, path, response):
+    def scan(self, path, response, parsers):
         if self.invalidStatus == 404 and response.status == 404:
             return False
 
@@ -116,7 +116,7 @@ class Scanner(object):
             # If redirection doesn't match the rule, mark as found
 
             if not redirectToInvalid:
-                return True
+                return "r"
 
         ratio = self.dynamicParser.compareTo(response.body)
 
@@ -126,4 +126,8 @@ class Scanner(object):
         elif redirectToInvalid and ratio >= (self.ratio - 0.15):
             return False
 
-        return True
+        for parser in parsers:
+            if parser.compareTo(response.body) >= self.ratio:
+                return False
+
+        return ratio

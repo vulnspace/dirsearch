@@ -318,7 +318,7 @@ class Controller(object):
                     self.blacklists.get(path.status) is None or path.path not in self.blacklists.get(
                 path.status)) and not (
                     self.suppressEmpty and (len(path.response.body) == 0)):
-                self.output.statusReport(path.path, path.response)
+                self.output.statusReport(path.path, path.response, path.ratio)
                 if path.response.redirect:
                     self.addRedirectDirectory(path)
                 else:

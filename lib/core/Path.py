@@ -18,10 +18,11 @@
 
 
 class Path(object):
-    def __init__(self, path=None, status=None, response=None):
+    def __init__(self, path=None, status=None, response=None, ratio=None):
         self.path = path
         self.status = status
         self.response = response
+        self.ratio = ratio
 
     def __str__(self):
         return self.path
