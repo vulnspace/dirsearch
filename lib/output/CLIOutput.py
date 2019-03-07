@@ -81,9 +81,8 @@ class CLIOutput(object):
         self.lastInLine = False
         sys.stdout.flush()
 
-    def statusReport(self, path, response):
+    def statusReport(self, path, response, ratio):
         with self.mutex:
-            contentLength = None
             status = response.status
 
             # Check blacklist
@@ -91,14 +90,7 @@ class CLIOutput(object):
                 return
 
             # Format message
-            try:
-                size = int(response.headers['content-length'])
-
-            except (KeyError, ValueError):
-                size = len(response.body)
-
-            finally:
-                contentLength = FileUtils.sizeHuman(size)
+            contentLength = Response.sizeHuman(response)
 
             if self.basePath is None:
                 showPath = urllib.parse.urljoin("/", path)
@@ -106,10 +98,11 @@ class CLIOutput(object):
             else:
                 showPath = urllib.parse.urljoin("/", self.basePath)
                 showPath = urllib.parse.urljoin(showPath, path)
-            message = '[{0}] {1} - {2} - {3}'.format(
+            message = '[{0}] {1} - {2} - {3} - {4}'.format(
                 time.strftime('%H:%M:%S'),
                 status,
                 contentLength.rjust(6, ' '),
+                ratio if type(ratio) is str else '{0:.3f}'.format(ratio),
                 showPath
             )
 

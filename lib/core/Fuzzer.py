@@ -19,6 +19,7 @@
 import threading
 
 from lib.connection.RequestException import RequestException
+from lib.utils import Response
 from .Path import *
 from .Scanner import *
 
@@ -41,6 +42,7 @@ class Fuzzer(object):
         self.errorCallbacks = errorCallbacks
         self.matches = []
         self.errors = []
+        self.responsesBySize = {}
 
     def wait(self, timeout=None):
         for thread in self.threads:
@@ -92,6 +94,7 @@ class Fuzzer(object):
         self.running = True
         self.playEvent = threading.Event()
         self.pausedSemaphore = threading.Semaphore(0)
+        self.ratioCheckLock = threading.Lock()
         self.playEvent.clear()
         self.exit = False
 
@@ -116,9 +119,13 @@ class Fuzzer(object):
     def scan(self, path):
         response = self.requester.request(path)
         result = None
-        if self.getScannerFor(path).scan(path, response):
+        parsers = [res["parser"] for res in list(self.responsesBySize.values()) if "parser" in res]
+
+        reason = self.getScannerFor(path).scan(path, response, parsers)
+        if reason:
             result = (None if response.status == 404 else response.status)
-        return result, response
+
+        return result, response, reason
 
     def isRunning(self):
         return self.running
@@ -139,13 +146,35 @@ class Fuzzer(object):
             path = next(self.dictionary)
             while path is not None:
                 try:
-                    status, response = self.scan(path)
-                    result = Path(path=path, status=status, response=response)
+                    status, response, reason = self.scan(path)
+                    result = Path(path=path, status=status, response=response, ratio=reason)
 
                     if status is not None:
-                        self.matches.append(result)
-                        for callback in self.matchCallbacks:
-                            callback(result)
+                        size = Response.sizeBytes(response)
+                        was_found = False
+
+                        self.ratioCheckLock.acquire()
+                        if size in self.responsesBySize:
+                            if not "parser" in self.responsesBySize[size]:
+                                old_response = self.responsesBySize[size]["response"]
+                                self.responsesBySize[size]["parser"] = DynamicContentParser(self.requester, path, old_response.body, response.body)
+                                ratio = self.responsesBySize[size]["parser"].comparisonRatio
+                                self.responsesBySize[size]["ratio"] = ratio
+                                if ratio >= 0.90:
+                                    # сверяем схожесть второй найденной страницы такого же размера
+                                    was_found = True
+                        else:
+                            # впервые найденная страница такого размера
+                            self.responsesBySize[size] = {
+                                "response": response
+                            }
+                        self.ratioCheckLock.release()
+
+                        if not was_found:
+                            self.matches.append(result)
+
+                            for callback in self.matchCallbacks:
+                                callback(result)
                     else:
                         for callback in self.notFoundCallbacks:
                             callback(result)

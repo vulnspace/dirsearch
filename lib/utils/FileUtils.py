@@ -20,6 +20,21 @@ import os
 import os.path
 
 
+class Response(object):
+    @staticmethod
+    def sizeBytes(response):
+        try:
+            size = int(response.headers['content-length'])
+
+        except (KeyError, ValueError):
+            size = len(response.body)
+        return size
+
+    @staticmethod
+    def sizeHuman(response):
+        return FileUtils.sizeHuman(Response.sizeBytes(response))
+
+
 class File(object):
     def __init__(self, *pathComponents):
         self._path = FileUtils.buildPath(*pathComponents)

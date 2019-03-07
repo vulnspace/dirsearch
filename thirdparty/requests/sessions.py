@@ -9,6 +9,7 @@ requests (cookies, auth, proxies).
 
 """
 import os
+import re
 from collections import Mapping
 from datetime import datetime
 
@@ -117,6 +118,17 @@ class SessionRedirectMixin(object):
 
             url = resp.headers['location']
             method = req.method
+
+            if ":" in url:
+                ports_chain = re.search(r'(:\d+){2,}', url)
+                if ports_chain:
+                    true_port = ports_chain.group(0).split(':')[-1]
+                    url = url.replace(ports_chain.group(0), ':' + true_port)
+                    if ':' in prepared_request.headers['Host']:
+                        fixed_host = prepared_request.headers['Host'].split(':')[0] + ":" + true_port
+                        prepared_request.headers['Host'] = fixed_host
+
+            # print("Fixed url: "+url)
 
             # Handle redirection without scheme (see: RFC 1808 Section 4)
             if url.startswith('//'):
