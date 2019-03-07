@@ -94,6 +94,7 @@ class Fuzzer(object):
         self.running = True
         self.playEvent = threading.Event()
         self.pausedSemaphore = threading.Semaphore(0)
+        self.ratioCheckLock = threading.Lock()
         self.playEvent.clear()
         self.exit = False
 
@@ -152,21 +153,22 @@ class Fuzzer(object):
                         size = Response.sizeBytes(response)
                         was_found = False
 
+                        self.ratioCheckLock.acquire()
                         if size in self.responsesBySize:
                             if not "parser" in self.responsesBySize[size]:
                                 old_response = self.responsesBySize[size]["response"]
                                 self.responsesBySize[size]["parser"] = DynamicContentParser(self.requester, path, old_response.body, response.body)
                                 ratio = self.responsesBySize[size]["parser"].comparisonRatio
                                 self.responsesBySize[size]["ratio"] = ratio
-                                print(ratio)
-                                if ratio >= 0.98:
-                                    # вторая найденная страница такого же размера
+                                if ratio >= 0.90:
+                                    # сверяем схожесть второй найденной страницы такого же размера
                                     was_found = True
                         else:
                             # впервые найденная страница такого размера
                             self.responsesBySize[size] = {
                                 "response": response
                             }
+                        self.ratioCheckLock.release()
 
                         if not was_found:
                             self.matches.append(result)
