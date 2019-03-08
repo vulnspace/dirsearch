@@ -151,6 +151,9 @@ class Fuzzer(object):
 
                     if status is not None:
                         size = Response.sizeBytes(response)
+                        if size > 1000:
+                            # только для больших ответов, иначе много фолсов на маленьких
+                            size = int(float(size)/1000)*1000
                         was_found = False
 
                         self.ratioCheckLock.acquire()
