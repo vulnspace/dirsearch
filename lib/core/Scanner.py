@@ -28,6 +28,8 @@ class ScannerException(Exception):
 
 
 class Scanner(object):
+    RATIO = 0.90
+
     def __init__(self, requester, testPath=None, suffix=None):
         if testPath is None or testPath is "":
             self.testPath = RandomUtils.randString()
@@ -42,7 +44,7 @@ class Scanner(object):
         self.dynamicParser = None
         # снижаем общий коэффициент совпадения
         # с 0.98 до 0.9
-        self.ratio = 0.90
+        self.ratio = Scanner.RATIO
         self.redirectStatusCodes = [301, 302, 307]
         self.setup()
 

@@ -112,6 +112,13 @@ class Fuzzer(object):
             if thread.is_alive():
                 self.pausedSemaphore.acquire()
 
+        print("\nResponses diff info")
+        for size in sorted(self.responsesBySize.keys()):
+            print("%d: %s - %s - %s - %s - %s" % (size, self.responsesBySize[size]['path'],
+                self.responsesBySize[size]['thread'], self.responsesBySize[size].get('ratio'),
+                self.responsesBySize[size].get('second_path'),
+                self.responsesBySize[size].get('second_thread')))
+
     def stop(self):
         self.running = False
         self.play()
@@ -156,22 +163,31 @@ class Fuzzer(object):
                             size = int(float(size)/1000)*1000
                         was_found = False
 
-                        self.ratioCheckLock.acquire()
-                        if size in self.responsesBySize:
-                            if not "parser" in self.responsesBySize[size]:
-                                old_response = self.responsesBySize[size]["response"]
-                                self.responsesBySize[size]["parser"] = DynamicContentParser(self.requester, path, old_response.body, response.body)
-                                ratio = self.responsesBySize[size]["parser"].comparisonRatio
-                                self.responsesBySize[size]["ratio"] = ratio
-                                if ratio >= 0.90:
-                                    # сверяем схожесть второй найденной страницы такого же размера
-                                    was_found = True
-                        else:
-                            # впервые найденная страница такого размера
-                            self.responsesBySize[size] = {
-                                "response": response
-                            }
-                        self.ratioCheckLock.release()
+                        with self.ratioCheckLock:
+                            if size in self.responsesBySize:
+                                if not "parser" in self.responsesBySize[size]:
+                                    old_response = self.responsesBySize[size]["response"]
+                                    self.responsesBySize[size]["parser"] = DynamicContentParser(self.requester, path, old_response.body, response.body)
+                                    ratio = self.responsesBySize[size]["parser"].comparisonRatio
+                                    self.responsesBySize[size]["ratio"] = ratio
+                                    self.responsesBySize[size]["second_path"] = path
+                                    self.responsesBySize[size]["second_thread"] = threading.get_ident()
+                                    # print("%s is similar to earlier saved %s: %f" % (self.responsesBySize[size]["path"], path, ratio))
+                                    if ratio >= Scanner.RATIO:
+                                        # сверяем схожесть второй найденной страницы такого же размера
+                                        was_found = True
+                                else:
+                                    # сверяем схожесть страниц такого же размера, обработанных реквестером до появления парсера
+                                    if self.responsesBySize[size]["parser"].compareTo(response.body) >= Scanner.RATIO:
+                                        was_found = True
+
+                            else:
+                                # впервые найденная страница такого размера
+                                self.responsesBySize[size] = {
+                                    "response": response,
+                                    "path": path,
+                                    "thread": threading.get_ident()
+                                }
 
                         if not was_found:
                             self.matches.append(result)
