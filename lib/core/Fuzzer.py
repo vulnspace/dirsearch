@@ -114,10 +114,10 @@ class Fuzzer(object):
 
         print("\nResponses diff info")
         for size in sorted(self.responsesBySize.keys()):
-            print("%d: %s - %s - %s - %s - %s" % (size, self.responsesBySize[size]['path'],
-                self.responsesBySize[size]['thread'], self.responsesBySize[size].get('ratio'),
-                self.responsesBySize[size].get('second_path'),
-                self.responsesBySize[size].get('second_thread')))
+            for page in self.responsesBySize[size]:
+                print("%d: %s - %s - %s - %s - %s" % (size, page['path'],
+                    page['thread'], page.get('ratio'), page.get('second_path'),
+                    page.get('second_thread')))
 
     def stop(self):
         self.running = False
@@ -126,8 +126,8 @@ class Fuzzer(object):
     def scan(self, path):
         response = self.requester.request(path)
         result = None
-        parsers = [res["parser"] for res in list(self.responsesBySize.values()) if "parser" in res]
-
+        page_clusters = list(self.responsesBySize.values())
+        parsers = [page["parser"] for pages in page_clusters for page in pages if "parser" in page]
         reason = self.getScannerFor(path).scan(path, response, parsers)
         if reason:
             result = (None if response.status == 404 else response.status)
@@ -158,36 +158,50 @@ class Fuzzer(object):
 
                     if status is not None:
                         size = Response.sizeBytes(response)
-                        if size > 1000:
-                            # только для больших ответов, иначе много фолсов на маленьких
-                            size = int(float(size)/1000)*1000
+                        # кластеризация, делим побайтно
+                        size = int(float(size)/1000)*1000
                         was_found = False
 
                         with self.ratioCheckLock:
                             if size in self.responsesBySize:
-                                if not "parser" in self.responsesBySize[size]:
-                                    old_response = self.responsesBySize[size]["response"]
-                                    self.responsesBySize[size]["parser"] = DynamicContentParser(self.requester, path, old_response.body, response.body)
-                                    ratio = self.responsesBySize[size]["parser"].comparisonRatio
-                                    self.responsesBySize[size]["ratio"] = ratio
-                                    self.responsesBySize[size]["second_path"] = path
-                                    self.responsesBySize[size]["second_thread"] = threading.get_ident()
-                                    # print("%s is similar to earlier saved %s: %f" % (self.responsesBySize[size]["path"], path, ratio))
-                                    if ratio >= Scanner.RATIO:
+                                for page in self.responsesBySize[size]:
+                                    if not "parser" in page:
+                                        # если мы нашли вторую страницу с похожим размером, то сравниваем ее с первой
+                                        prev_response = page["response"]
+                                        parser = DynamicContentParser(self.requester, path, prev_response.body, response.body)
+                                        ratio = parser.comparisonRatio
                                         # сверяем схожесть второй найденной страницы такого же размера
-                                        was_found = True
-                                else:
-                                    # сверяем схожесть страниц такого же размера, обработанных реквестером до появления парсера
-                                    if self.responsesBySize[size]["parser"].compareTo(response.body) >= Scanner.RATIO:
-                                        was_found = True
+                                        if ratio >= Scanner.RATIO:
+                                            # если похожа, то сохраняем парсер для дальнейшего использования
+                                            # и все остальные детали сравнения
+                                            page["parser"] = parser
+                                            page["ratio"] = ratio
+                                            page["second_path"] = path
+                                            page["second_thread"] = threading.get_ident()
+                                            # убираем страницу из результатов
+                                            was_found = True
+                                            break
+                                    else:
+                                        # сверяем схожесть страниц такого же размера, обработанных реквестером до появления парсера
+                                        if page["parser"].compareTo(response.body) >= Scanner.RATIO:
+                                            was_found = True
+                                            break
+                                # если после проверки парсерами по кластеру страница не оказалась похожа ни на что
+                                # то добавляем её в кластер
+                                if not was_found:
+                                    self.responsesBySize[size].append({
+                                            "response": response,
+                                            "path": path,
+                                            "thread": threading.get_ident()
+                                        })
 
                             else:
                                 # впервые найденная страница такого размера
-                                self.responsesBySize[size] = {
-                                    "response": response,
-                                    "path": path,
-                                    "thread": threading.get_ident()
-                                }
+                                self.responsesBySize[size] = [{
+                                        "response": response,
+                                        "path": path,
+                                        "thread": threading.get_ident()
+                                    }]
 
                         if not was_found:
                             self.matches.append(result)
