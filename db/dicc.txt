@@ -5938,4 +5938,5 @@ zf_backend.php
 zimbra
 zimbra/
 zone-h.php
+.composer/auth.json
 ~admin/
