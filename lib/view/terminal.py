@@ -17,13 +17,11 @@
 #  Author: Mauro Soria
 
 import sys
-import time
 import shutil
 
 from lib.core.data import options
 from lib.core.decorators import locked
 from lib.core.settings import IS_WINDOWS
-from lib.utils.common import human_size
 from lib.view.colors import set_color, clean_color, disable_color
 
 if IS_WINDOWS:
@@ -88,11 +86,8 @@ class CLI:
             self.buffer += "\n"
 
     def status_report(self, response, full_url):
-        status = response.status
-        length = human_size(response.length)
         target = response.url if full_url else "/" + response.full_path
-        current_time = time.strftime("%H:%M:%S")
-        message = f"[{current_time}] {status} - {length.rjust(6, ' ')} - {target}"
+        message = f"[{response.time}] {response.status} - {response.size.rjust(6, ' ')} - {target}"
 
         if status in (200, 201, 204):
             message = set_color(message, fore="green")

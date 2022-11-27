@@ -53,16 +53,7 @@ from lib.core.settings import (
 )
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path
-from lib.reports.csv_report import CSVReport
-from lib.reports.html_report import HTMLReport
-from lib.reports.json_report import JSONReport
-from lib.reports.markdown_report import MarkdownReport
-from lib.reports.mysql_report import MySQLReport
-from lib.reports.plain_text_report import PlainTextReport
-from lib.reports.postgresql_report import PostgreSQLReport
-from lib.reports.simple_report import SimpleReport
-from lib.reports.sqlite_report import SQLiteReport
-from lib.reports.xml_report import XMLReport
+from lib.report.manager import ReportManager
 from lib.utils.common import get_valid_filename, lstrip_once
 from lib.utils.file import FileUtils
 from lib.utils.pickle import pickle, unpickle
@@ -130,12 +121,10 @@ class Controller:
 
         self.requester = Requester()
         self.dictionary = Dictionary(files=options["wordlists"])
-        self.results = []
+        self.reporter = ReportManager()
         self.start_time = time.time()
         self.passed_urls = set()
         self.directories = []
-        self.report = None
-        self.batch = False
         self.jobs_processed = 0
         self.errors = 0
         self.consecutive_errors = 0
@@ -159,22 +148,6 @@ class Controller:
             except Exception:
                 interface.error(
                     f'Couldn\'t create log file at {options["log_file"]}'
-                )
-                exit(1)
-
-        if options["autosave_report"]:
-            self.report_path = options["output_path"] or FileUtils.build_path(
-                SCRIPT_PATH, "reports"
-            )
-
-            try:
-                FileUtils.create_dir(self.report_path)
-                if not FileUtils.can_write(self.report_path):
-                    raise Exception
-
-            except Exception:
-                interface.error(
-                    f"Couldn't create report folder at {self.report_path}"
                 )
                 exit(1)
 
@@ -342,93 +315,6 @@ class Controller:
 
         self.requester.set_url(self.url)
 
-    def setup_batch_reports(self):
-        """Create batch report folder"""
-
-        self.batch = True
-        current_time = time.strftime("%y-%m-%d_%H-%M-%S")
-        batch_session = f"BATCH-{current_time}"
-        batch_directory_path = FileUtils.build_path(self.report_path, batch_session)
-
-        try:
-            FileUtils.create_dir(batch_directory_path)
-        except Exception:
-            interface.error(f"Couldn't create batch folder at {batch_directory_path}")
-            exit(1)
-
-        return batch_directory_path
-
-    def get_output_extension(self):
-        if options["output_format"] in ("plain", "simple"):
-            return "txt"
-
-        return {options["output_format"]}
-
-    def setup_reports(self):
-        """Create report file"""
-
-        output = options["output"]
-
-        if options["autosave_report"] and not output and options["output_format"] not in ("mysql", "postgresql"):
-            if len(options["urls"]) > 1:
-                directory_path = self.setup_batch_reports()
-                filename = "BATCH." + self.get_output_extension()
-            else:
-                parsed = urlparse(options["urls"][0])
-
-                if not parsed.netloc:
-                    parsed = urlparse(f"//{options['urls'][0]}")
-
-                filename = get_valid_filename(f"{parsed.path}_")
-                filename += time.strftime("%y-%m-%d_%H-%M-%S")
-                filename += f".{self.get_output_extension()}"
-                directory_path = FileUtils.build_path(
-                    self.report_path, get_valid_filename(f"{parsed.scheme}_{parsed.netloc}")
-                )
-
-            output = FileUtils.get_abs_path((FileUtils.build_path(directory_path, filename)))
-
-            if FileUtils.exists(output):
-                i = 2
-                while FileUtils.exists(f"{output}_{i}"):
-                    i += 1
-
-                output += f"_{i}"
-
-            try:
-                FileUtils.create_dir(directory_path)
-            except Exception:
-                interface.error(
-                    f"Couldn't create the reports folder at {directory_path}"
-                )
-                exit(1)
-
-        if not output:
-            return
-
-        if options["output_format"] == "plain":
-            self.report = PlainTextReport(output)
-        elif options["output_format"] == "json":
-            self.report = JSONReport(output)
-        elif options["output_format"] == "xml":
-            self.report = XMLReport(output)
-        elif options["output_format"] == "md":
-            self.report = MarkdownReport(output)
-        elif options["output_format"] == "csv":
-            self.report = CSVReport(output)
-        elif options["output_format"] == "html":
-            self.report = HTMLReport(output)
-        elif options["output_format"] == "sqlite":
-            self.report = SQLiteReport(output)
-        elif options["output_format"] == "mysql":
-            self.report = MySQLReport(output)
-        elif options["output_format"] == "postgresql":
-            self.report = PostgreSQLReport(output)
-        else:
-            self.report = SimpleReport(output)
-
-        interface.output_location(output)
-
     def reset_consecutive_errors(self, response):
         self.consecutive_errors = 0
 
@@ -463,9 +349,7 @@ class Controller:
             # Replay the request with new proxy
             self.requester.request(response.full_path, proxy=options["replay_proxy"])
 
-        if self.report:
-            self.results.append(response)
-            self.report.save(self.results)
+        self.reporter.update(response)
 
     def update_progress_bar(self, response):
         jobs_count = (

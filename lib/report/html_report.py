@@ -17,23 +17,22 @@
 #  Author: Mauro Soria
 
 import os
-import sys
-import time
 
 from jinja2 import Environment, FileSystemLoader
 
-from lib.reports.base import FileBaseReport
+from lib.core.settings import COMMAND, START_TIME
+from lib.report.factory import BaseTextReport, TextReportMixin
 from lib.utils.common import human_size
 
 
-class HTMLReport(FileBaseReport):
+class HTMLReport(BaseTextReport, TextReportMixin):
     def generate(self, entries):
         file_loader = FileSystemLoader(
             os.path.dirname(os.path.realpath(__file__)) + "/templates/"
         )
         env = Environment(loader=file_loader)
         template = env.get_template("html_report_template.html")
-        metadata = {"command": " ".join(sys.argv), "date": time.ctime()}
+        metadata = {"command": COMMAND, "date": START_TIME}
         results = []
 
         for entry in entries:

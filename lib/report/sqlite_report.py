@@ -16,24 +16,27 @@
 #
 #  Author: Mauro Soria
 
-from lib.core.settings import NEW_LINE
-from lib.reports.base import FileBaseReport
-from lib.utils.common import escape_csv
+import sqlite3
+
+from lib.reports.base import SQLBaseReport
 
 
-class CSVReport(FileBaseReport):
-    def get_header(self):
-        return "URL,Status,Size,Content Type,Redirection" + NEW_LINE
+class SQLiteReport(SQLBaseReport):
+    def connect(self, output_file):
+        self.conn = sqlite3.connect(output_file, check_same_thread=False)
+        self.cursor = self.conn.cursor()
 
-    def generate(self, entries):
-        output = self.get_header()
+    def create_table_query(self, table):
+        return (f'''CREATE TABLE "{table}" (
+            time DATETIME,
+            url TEXT,
+            status_code INTEGER,
+            content_length INTEGER,
+            content_type TEXT,
+            redirect TEXT
+        );''',)
 
-        for entry in entries:
-            output += f"{entry.url},{entry.status},{entry.length},{entry.type},"
-
-            if entry.redirect:
-                output += f'"{escape_csv(entry.redirect)}"'
-
-            output += NEW_LINE
-
-        return output
+    def insert_table_query(self, table, values):
+        return (f'''INSERT INTO "{table}" (time, url, status_code, content_length, content_type, redirect)
+                    VALUES
+                    (?, ?, ?, ?, ?, ?)''', values)

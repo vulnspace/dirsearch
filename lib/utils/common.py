@@ -24,7 +24,6 @@ from urllib.parse import quote, urljoin
 
 from lib.core.settings import (
     INVALID_CHARS_FOR_WINDOWS_FILENAME,
-    INSECURE_CSV_CHARS,
     INVALID_FILENAME_CHAR_REPLACEMENT,
     IS_WINDOWS,
     URL_SAFE_CHARS,
@@ -70,7 +69,7 @@ def get_valid_filename(string):
 
 def human_size(num):
     base = 1024
-    for unit in ["B ", "KB", "MB", "GB"]:
+    for unit in ["B", "KB", "MB", "GB"]:
         if -base < num < base:
             return f"{num}{unit}"
         num = round(num / base)
@@ -92,14 +91,6 @@ def iprange(subnet):
         network = IPv6Network(subnet)
 
     return [str(ip) for ip in network]
-
-
-# Prevent CSV injection. Reference: https://www.exploit-db.com/exploits/49370
-def escape_csv(text):
-    if text.startswith(INSECURE_CSV_CHARS):
-        text = "'" + text
-
-    return text.replace('"', '""')
 
 
 # The browser direction behavior when you click on <a href="bar">link</a>

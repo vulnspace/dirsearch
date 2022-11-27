@@ -16,17 +16,18 @@
 #
 #  Author: Mauro Soria
 
-import time
-import sys
-
-from lib.core.settings import NEW_LINE
+from lib.core.settings import (
+    COMMAND,
+    NEW_LINE,
+    START_TIME,
+)
 from lib.reports.base import FileBaseReport
 from lib.utils.common import human_size
 
 
 class PlainTextReport(FileBaseReport):
     def get_header(self):
-        return f"# Dirsearch started {time.ctime()} as: {chr(32).join(sys.argv)}" + NEW_LINE * 2
+        return f"# Dirsearch started {START_TIME} as: {COMMAND}" + NEW_LINE * 2
 
     def generate(self, entries):
         output = self.get_header()

@@ -16,19 +16,20 @@
 #
 #  Author: Mauro Soria
 
-import time
-import sys
-
-from lib.core.settings import NEW_LINE
+from lib.core.settings import (
+    COMMAND,
+    NEW_LINE,
+    START_TIME,
+)
 from lib.reports.base import FileBaseReport
 
 
 class MarkdownReport(FileBaseReport):
     def get_header(self):
         header = "### Information" + NEW_LINE
-        header += f"Command: {chr(32).join(sys.argv)}"
+        header += f"Command: {COMMAND}"
         header += NEW_LINE
-        header += f"Time: {time.ctime()}"
+        header += f"Time: {START_TIME}"
         header += NEW_LINE * 2
         header += "URL | Status | Size | Content Type | Redirection" + NEW_LINE
         header += "----|--------|------|--------------|------------" + NEW_LINE

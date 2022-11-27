@@ -31,7 +31,7 @@ from lib.utils.file import File, FileUtils
 
 
 def parse_options():
-    opt = parse_config(parse_arguments())
+    opt = merge_config(parse_arguments())
 
     if opt.session_file:
         return vars(opt)
@@ -162,9 +162,11 @@ def parse_options():
               "that has already in the extension list")
         exit(1)
 
-    if opt.output_format not in OUTPUT_FORMATS:
-        print("Select one of the following output formats: "
-              f"{', '.join(OUTPUT_FORMATS)}")
+    opt.output_formats = [format.strip() for format in opt.output_formats.split(",")]
+    invalid_formats = set(opt.output_formats).difference(OUTPUT_FORMATS)
+
+    if invalid_formats:
+        print(f"Invalid output format(s): {', '.join(invalid_formats)}")
         exit(1)
 
     return vars(opt)
@@ -207,7 +209,7 @@ def _access_file(path):
         return fd
 
 
-def parse_config(opt):
+def merge_config(opt):
     config = ConfigParser()
     config.read(opt.config)
 
@@ -318,12 +320,13 @@ def parse_config(opt):
     )
 
     # Output
-    opt.output_path = config.safe_get("output", "autosave-report-folder")
-    opt.autosave_report = config.safe_getboolean("output", "autosave-report")
-    opt.log_file_size = config.safe_getint("output", "log-file-size")
-    opt.log_file = opt.log_file or config.safe_get("output", "log-file")
-    opt.output_format = opt.output_format or config.safe_get(
-        "output", "report-format", "plain", OUTPUT_FORMATS
+    opt.output_file = opt.output_file or config.safe_get("output", "output-file")
+    opt.output_url = opt.output_url or config.safe_get("output", "output-url")
+    opt.sql_table_name = config.safe_getboolean("output", "output-sql-table")
+    opt.output_formats = opt.output_formats or config.safe_get(
+        "output", "output-format", "plain"
     )
+    opt.log_file = opt.log_file or config.safe_get("output", "log-file")
+    opt.log_file_size = config.safe_getint("output", "log-file-size")
 
     return opt

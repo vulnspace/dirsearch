@@ -16,28 +16,27 @@
 #
 #  Author: Mauro Soria
 
-import time
-import sys
+import json
 
-from xml.dom import minidom
-from xml.etree import ElementTree as ET
-
-from lib.core.settings import DEFAULT_ENCODING
+from lib.core.settings import COMMAND, START_TIME
 from lib.reports.base import FileBaseReport
 
 
-class XMLReport(FileBaseReport):
+class JSONReport(FileBaseReport):
     def generate(self, entries):
-        tree = ET.Element("dirsearchscan", args=" ".join(sys.argv), time=time.ctime())
+        report = {
+            "info": {"args": COMMAND, "time": START_TIME},
+            "results": [],
+        }
 
         for entry in entries:
-            target = ET.SubElement(tree, "target", url=entry.url)
-            ET.SubElement(target, "status").text = str(entry.status)
-            ET.SubElement(target, "contentLength").text = str(entry.length)
-            ET.SubElement(target, "contentType").text = entry.type
-            if entry.redirect:
-                ET.SubElement(target, "redirect").text = entry.redirect
+            result = {
+                "url": entry.url,
+                "status": entry.status,
+                "content-length": entry.length,
+                "content-type": entry.type,
+                "redirect": entry.redirect,
+            }
+            report["results"].append(result)
 
-        output = ET.tostring(tree, encoding=DEFAULT_ENCODING, method="xml")
-        # Beautify XML output
-        return minidom.parseString(output).toprettyxml()
+        return json.dumps(report, sort_keys=True, indent=4)
