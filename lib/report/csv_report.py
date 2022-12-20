@@ -16,27 +16,23 @@
 #
 #  Author: Mauro Soria
 
+from defusedcsv import csv
+
 from lib.core.settings import NEW_LINE
-from lib.report.base import BaseTextReport
-from lib.utils.common import escape_csv
+from lib.report.factory import BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin
 
 
-class CSVReport(TextReportMixin, BaseTextReport):
-    def open(self, output_file):
-        self._file_handler = csv.writer(employee_file, delimiter=',', quotechar='"')
+class CSVReport(BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin):
+    __format__ = "csv"
+    __extension__ = "csv"
 
     def get_header(self):
-        return "URL,Status,Size,Content Type,Redirection" + NEW_LINE
+        return ["URL", "Status", "Size", "Content Type", "Redirection"]
 
-    def generate(self, entries):
-        output = self.get_header()
+    def save(self, target):
+        with open(self.format(self.file, target), "w") as fd:
+            writer = csv.writer(fd, delimiter=',', quotechar='"')
+            writer.writerow(self.get_header())
 
-        for entry in entries:
-            output += f"{entry.url},{entry.status},{entry.length},{entry.type},"
-
-            if entry.redirect:
-                output += f'"{escape_csv(entry.redirect)}"'
-
-            output += NEW_LINE
-
-        return output
+            for result in self.get_results(target):
+                writer.writerow(result.url, result.status, result.length, result.type, result.redirect)

@@ -24,20 +24,22 @@ from lib.core.settings import (
     DEFAULT_ENCODING,
     START_TIME,
 )
-from lib.reports.base import FileBaseReport
+from lib.report.factory import BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin
 
 
-class XMLReport(FileBaseReport):
-    def generate(self, entries):
+class XMLReport(BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin):
+    __format__ = "xml"
+    __extension__ = "xml"
+
+    def generate(self, results):
         tree = ET.Element("dirsearchscan", args=COMMAND, time=START_TIME)
 
-        for entry in entries:
-            target = ET.SubElement(tree, "target", url=entry.url)
-            ET.SubElement(target, "status").text = str(entry.status)
-            ET.SubElement(target, "contentLength").text = str(entry.length)
-            ET.SubElement(target, "contentType").text = entry.type
-            if entry.redirect:
-                ET.SubElement(target, "redirect").text = entry.redirect
+        for result in results:
+            target = ET.SubElement(tree, "target", url=result.url)
+            ET.SubElement(target, "status").text = result.status
+            ET.SubElement(target, "contentLength").text = result.length
+            ET.SubElement(target, "contentType").text = result.type
+            ET.SubElement(target, "redirect").text = result.redirect
 
         output = ET.tostring(tree, encoding=DEFAULT_ENCODING, method="xml")
         # Beautify XML output

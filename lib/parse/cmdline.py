@@ -145,7 +145,7 @@ def parse_arguments():
         "-C",
         "--capital",
         action="store_true",
-        dest="capitalization",
+        dest="capital",
         help="Capital wordlist",
     )
 

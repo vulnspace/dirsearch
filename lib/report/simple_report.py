@@ -17,9 +17,12 @@
 #  Author: Mauro Soria
 
 from lib.core.settings import NEW_LINE
-from lib.reports.base import FileBaseReport
+from lib.report.factory import BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin
 
 
-class SimpleReport(FileBaseReport):
-    def generate(self, entries):
-        return NEW_LINE.join(entry.url for entry in entries)
+class SimpleReport(BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin):
+    __format__ = "simple"
+    __extension__ = "txt"
+
+    def generate(self, results):
+        return NEW_LINE.join(result.url for result in results)

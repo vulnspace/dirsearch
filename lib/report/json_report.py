@@ -19,24 +19,26 @@
 import json
 
 from lib.core.settings import COMMAND, START_TIME
-from lib.reports.base import FileBaseReport
+from lib.report.factory import BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin
 
 
-class JSONReport(FileBaseReport):
-    def generate(self, entries):
-        report = {
+class JSONReport(BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin):
+    __format__ = "json"
+    __extension__ = "json"
+
+    def generate(self, results):
+        data = {
             "info": {"args": COMMAND, "time": START_TIME},
             "results": [],
         }
 
-        for entry in entries:
-            result = {
-                "url": entry.url,
-                "status": entry.status,
-                "content-length": entry.length,
-                "content-type": entry.type,
-                "redirect": entry.redirect,
-            }
-            report["results"].append(result)
+        for result in results:
+            data["results"].append({
+                "url": result.url,
+                "status": result.status,
+                "content-length": result.length,
+                "content-type": result.type,
+                "redirect": result.redirect,
+            })
 
-        return json.dumps(report, sort_keys=True, indent=4)
+        return json.dumps(data, sort_keys=True, indent=4)

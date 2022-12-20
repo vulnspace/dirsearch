@@ -21,10 +21,13 @@ from lib.core.settings import (
     NEW_LINE,
     START_TIME,
 )
-from lib.reports.base import FileBaseReport
+from lib.report.factory import BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin
 
 
-class MarkdownReport(FileBaseReport):
+class MarkdownReport(BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin):
+    __format__ = "markdown"
+    __extension__ = "md"
+
     def get_header(self):
         header = "### Information" + NEW_LINE
         header += f"Command: {COMMAND}"
@@ -35,10 +38,10 @@ class MarkdownReport(FileBaseReport):
         header += "----|--------|------|--------------|------------" + NEW_LINE
         return header
 
-    def generate(self, entries):
-        output = self.get_header()
+    def generate(self, results):
+        data = self.get_header()
 
-        for entry in entries:
-            output += f"{entry.url} | {entry.status} | {entry.length} | {entry.type} | {entry.redirect}" + NEW_LINE
+        for result in results:
+            data += f"{result.url} | {result.status} | {result.length} | {result.type} | {result.redirect}" + NEW_LINE
 
-        return output
+        return data

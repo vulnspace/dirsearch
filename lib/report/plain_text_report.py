@@ -21,24 +21,27 @@ from lib.core.settings import (
     NEW_LINE,
     START_TIME,
 )
-from lib.reports.base import FileBaseReport
+from lib.report.factory import BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin
 from lib.utils.common import human_size
 
 
-class PlainTextReport(FileBaseReport):
+class PlainTextReport(BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin):
+    __format__ = "plain"
+    __extension__ = "txt"
+
     def get_header(self):
         return f"# Dirsearch started {START_TIME} as: {COMMAND}" + NEW_LINE * 2
 
-    def generate(self, entries):
-        output = self.get_header()
+    def generate(self, results):
+        data = self.get_header()
 
-        for entry in entries:
-            readable_size = human_size(entry.length)
-            output += f"{entry.status}  {readable_size.rjust(6, chr(32))}  {entry.url}"
+        for result in results:
+            readable_size = human_size(result.length)
+            data += f"{result.status} {readable_size.rjust(6, chr(32))} {result.url}"
 
-            if entry.redirect:
-                output += f"    -> REDIRECTS TO: {entry.redirect}"
+            if result.redirect:
+                data += f"  ->  {result.redirect}"
 
-            output += NEW_LINE
+            data += NEW_LINE
 
-        return output
+        return data

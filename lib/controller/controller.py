@@ -47,7 +47,6 @@ from lib.core.settings import (
     EXTENSION_RECOGNITION_REGEX,
     MAX_CONSECUTIVE_REQUEST_ERRORS,
     NEW_LINE,
-    SCRIPT_PATH,
     STANDARD_PORTS,
     UNKNOWN,
 )
@@ -221,6 +220,7 @@ class Controller:
                 exit(0)
 
             finally:
+                self.reporter.save(url)
                 options["urls"].pop(0)
 
         interface.warning("\nTask Completed")
@@ -350,6 +350,9 @@ class Controller:
             self.requester.request(response.full_path, proxy=options["replay_proxy"])
 
         self.reporter.update(response)
+
+        if not options["optimize_output"]:
+            self.reporter.save(response.url)
 
     def update_progress_bar(self, response):
         jobs_count = (

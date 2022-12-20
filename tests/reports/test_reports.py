@@ -22,12 +22,12 @@ from unittest import TestCase
 
 from lib.connection.requester import Requester
 from lib.core.settings import DUMMY_URL, DUMMY_WORD, NEW_LINE, TMP_PATH
-from lib.reports.csv_report import CSVReport
-from lib.reports.json_report import JSONReport
-from lib.reports.markdown_report import MarkdownReport
-from lib.reports.plain_text_report import PlainTextReport
-from lib.reports.simple_report import SimpleReport
-from lib.reports.xml_report import XMLReport
+from lib.report.csv_report import CSVReport
+from lib.report.json_report import JSONReport
+from lib.report.markdown_report import MarkdownReport
+from lib.report.plain_text_report import PlainTextReport
+from lib.report.simple_report import SimpleReport
+from lib.report.xml_report import XMLReport
 
 requester = Requester()
 test_entries = [requester.request(DUMMY_URL + DUMMY_WORD)]
@@ -69,5 +69,6 @@ class TestReports(TestCase):
         expected_result += "\t\t<status>404</status>\n"
         expected_result += "\t\t<contentLength>648</contentLength>\n"
         expected_result += "\t\t<contentType>text/html</contentType>\n"
+        expected_result += "\t\t<redirect/>\n"
         expected_result += "\t</target>"
         self.assertTrue(expected_result in XMLReport(TMP_PATH).generate(test_entries))

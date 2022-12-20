@@ -66,10 +66,6 @@ class Response:
         except TypeError:
             return len(self.body)
 
-    @property
-    def size(self):
-        return human_size(self.length)
-
     def __hash__(self):
         return hash(self.body)
 

@@ -19,13 +19,24 @@
 import psycopg
 
 from lib.core.exceptions import InvalidURLException
-from lib.reports.base import SQLBaseReport
+from lib.report.factory import BaseReport, FormattingMixin, ResultsManagementMixin, SQLReportMixin
 
 
-class PostgreSQLReport(SQLBaseReport):
+class PostgreSQLReport(BaseReport, FormattingMixin, ResultsManagementMixin, SQLReportMixin):
+    __format__ = "sql"
+    __extension__ = None
+
+    # Cache connection
+    _conn = None
+
+    def is_valid(self, url):
+        return url.startswith(("postgres://", "postgresql://"))
+
     def connect(self, url):
-        if not url.startswith("postgresql://"):
-            raise InvalidURLException("Provided PostgreSQL URL does not start with postgresql://")
+        if not self._conn:
+            if not self.is_valid(url):
+                raise InvalidURLException("Provided PostgreSQL URL does not start with postgresql://")
 
-        self.conn = psycopg.connect(url)
-        self.cursor = self.conn.cursor()
+            self._conn = psycopg.connect(url)
+
+        return self._conn

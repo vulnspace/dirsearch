@@ -16,22 +16,18 @@
 #
 #  Author: Mauro Soria
 
-import time
-
-from urllib.parse import urlparse
-
 from lib.core.data import options
-from lib.core.settings import OUTPUT_FORMATS
-from lib.reports.csv_report import CSVReport
-from lib.reports.html_report import HTMLReport
-from lib.reports.json_report import JSONReport
-from lib.reports.markdown_report import MarkdownReport
-from lib.reports.mysql_report import MySQLReport
-from lib.reports.plain_text_report import PlainTextReport
-from lib.reports.postgresql_report import PostgreSQLReport
-from lib.reports.simple_report import SimpleReport
-from lib.reports.sqlite_report import SQLiteReport
-from lib.reports.xml_report import XMLReport
+from lib.core.settings import OUTPUT_FORMATS, STANDARD_PORTS
+from lib.report.csv_report import CSVReport
+from lib.report.html_report import HTMLReport
+from lib.report.json_report import JSONReport
+from lib.report.markdown_report import MarkdownReport
+from lib.report.mysql_report import MySQLReport
+from lib.report.plain_text_report import PlainTextReport
+from lib.report.postgresql_report import PostgreSQLReport
+from lib.report.simple_report import SimpleReport
+from lib.report.sqlite_report import SQLiteReport
+from lib.report.xml_report import XMLReport
 
 reporters = dict(
     zip(
@@ -53,46 +49,44 @@ reporters = dict(
 
 
 class ReportManager:
-    def __init__(self, url):
-        self.results = []
+    def __init__(self):
         self.reports = []
-        self.url = url
 
         for format in options["output_formats"]:
             self.reports.append(
-                self.get_output_handler(format)(self.get_output_source())
+                self.get_output_handler(format)(
+                    options["output_file"],
+                    options["output_url"],
+                    options["sql_table_name"],
+                )
             )
 
     def update(self, result):
-        self.results.append(result)
-
-    def save(self):
         for report in self.reports:
-            self.report.save(self.results)
+            report.append(result)
 
-    def get_output_extension(self, format):
-        if format in ("plain", "simple"):
-            return "txt"
-        elif format in ("mysql", "postgresql"):
-            return ""
-
-        return format
-
-    def get_output_source(self, format):
-        if format in ("mysql", "postgresql"):
-            return options["output_url"]
-
-        return self.format(options["output_file"], format)
+    def save(self, target):
+        for report in self.reports:
+            report.save(self.get_output_source(target))
 
     def get_output_handler(self, format):
-        return reporters[format]
-
-    def format(string, format):
-        parsed = urlparse(self.url)
-        return string.format({
-            "date": time.strftime("%Y-%m-%d"),
-            "host": parsed.hostname,
-            "scheme": parsed.scheme,
-            "port": parsed.port or STANDARD_PORTS[parsed.scheme],
-            "extension": self.get_output_extension(format),
-        })
+        if format == "simple":
+            return SimpleReport(options["output_file"])
+        elif format == "plain":
+            return PlainTextReport(options["output_file"])
+        elif format == "json":
+            return JSONReport(options["output_file"])
+        elif format == "xml":
+            return XMLReport(options["output_file"])
+        elif format == "md":
+            return MarkdownReport(options["output_file"])
+        elif format == "csv":
+            return CSVReport(options["output_file"])
+        elif format == "html":
+            return HTMLReport(options["output_file"])
+        elif format == "sqlite":
+            return SQLiteReport(options["output_file"], options["output_table"])
+        elif format == "mysql":
+            return MySQLReport(options["output_url"], options["output_table"])
+        else:
+            return PostgreSQLReport(options["output_url"], options["output_table"])

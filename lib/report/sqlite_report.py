@@ -18,13 +18,12 @@
 
 import sqlite3
 
-from lib.reports.base import SQLBaseReport
+from lib.report.factory import BaseReport, FormattingMixin, ResultsManagementMixin, SQLReportMixin
 
 
-class SQLiteReport(SQLBaseReport):
-    def connect(self, output_file):
-        self.conn = sqlite3.connect(output_file, check_same_thread=False)
-        self.cursor = self.conn.cursor()
+class SQLiteReport(BaseReport, FormattingMixin, ResultsManagementMixin, SQLReportMixin):
+    __format__ = "sql"
+    __extension__ = "sqlite"
 
     def create_table_query(self, table):
         return (f'''CREATE TABLE "{table}" (
@@ -40,3 +39,6 @@ class SQLiteReport(SQLBaseReport):
         return (f'''INSERT INTO "{table}" (time, url, status_code, content_length, content_type, redirect)
                     VALUES
                     (?, ?, ?, ?, ?, ?)''', values)
+
+    def connect(self, target):
+        return sqlite3.connect(self.format(self.sources["file"], target), check_same_thread=False)

@@ -89,15 +89,15 @@ class CLI:
         target = response.url if full_url else "/" + response.full_path
         message = f"[{response.time}] {response.status} - {response.size.rjust(6, ' ')} - {target}"
 
-        if status in (200, 201, 204):
+        if response.status in (200, 201, 204):
             message = set_color(message, fore="green")
-        elif status == 401:
+        elif response.status == 401:
             message = set_color(message, fore="yellow")
-        elif status == 403:
+        elif response.status == 403:
             message = set_color(message, fore="blue")
-        elif status in range(500, 600):
+        elif response.status in range(500, 600):
             message = set_color(message, fore="red")
-        elif status in range(300, 400):
+        elif response.status in range(300, 400):
             message = set_color(message, fore="cyan")
         else:
             message = set_color(message, fore="magenta")
@@ -192,9 +192,6 @@ class CLI:
         self.new_line()
         self.print_header({"Target": target})
 
-    def output_location(self, file):
-        self.new_line(f"\nOutput: {file}")
-
     def log_file(self, file):
         self.new_line(f"\nLog File: {file}")
 
@@ -219,9 +216,6 @@ class QuietCLI(CLI):
         pass
 
     def target(*args):
-        pass
-
-    def output_location(*args):
         pass
 
     def log_file(*args):

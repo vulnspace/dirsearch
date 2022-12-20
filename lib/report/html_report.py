@@ -21,12 +21,14 @@ import os
 from jinja2 import Environment, FileSystemLoader
 
 from lib.core.settings import COMMAND, START_TIME
-from lib.report.factory import BaseTextReport, TextReportMixin
-from lib.utils.common import human_size
+from lib.report.factory import BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin
 
 
-class HTMLReport(BaseTextReport, TextReportMixin):
-    def generate(self, entries):
+class HTMLReport(BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin):
+    __format__ = "html"
+    __extension__ = "html"
+
+    def generate(self, results):
         file_loader = FileSystemLoader(
             os.path.dirname(os.path.realpath(__file__)) + "/templates/"
         )
@@ -35,23 +37,23 @@ class HTMLReport(BaseTextReport, TextReportMixin):
         metadata = {"command": COMMAND, "date": START_TIME}
         results = []
 
-        for entry in entries:
+        for result in results:
             status_color_class = ""
-            if entry.status >= 200 and entry.status <= 299:
+            if result.status >= 200 and result.status <= 299:
                 status_color_class = "text-success"
-            elif entry.status >= 300 and entry.status <= 399:
+            elif result.status >= 300 and result.status <= 399:
                 status_color_class = "text-warning"
-            elif entry.status >= 400 and entry.status <= 599:
+            elif result.status >= 400 and result.status <= 599:
                 status_color_class = "text-danger"
 
             results.append(
                 {
-                    "url": entry.url,
-                    "status": entry.status,
+                    "url": result.url,
+                    "status": result.status,
+                    "contentLength": result.length,
+                    "contentType": result.type,
+                    "redirect": result.redirect,
                     "statusColorClass": status_color_class,
-                    "contentLength": human_size(entry.length),
-                    "contentType": entry.type,
-                    "redirect": entry.redirect,
                 }
             )
 
