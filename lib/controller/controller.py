@@ -53,7 +53,7 @@ from lib.core.settings import (
 from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path
 from lib.report.manager import ReportManager
-from lib.utils.common import get_valid_filename, lstrip_once
+from lib.utils.common import lstrip_once
 from lib.utils.file import FileUtils
 from lib.utils.pickle import pickle, unpickle
 from lib.utils.schemedet import detect_scheme

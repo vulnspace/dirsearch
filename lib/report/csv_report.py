@@ -18,7 +18,6 @@
 
 from defusedcsv import csv
 
-from lib.core.settings import NEW_LINE
 from lib.report.factory import BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin
 
 

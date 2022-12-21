@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+- Ability to use multiple output formats
+- MySQL and PostgreSQL report formats
 
 ## [0.4.3] - October 2nd, 2022
 - Automatically detect the URI scheme (`http` or `https`) if no scheme is provided

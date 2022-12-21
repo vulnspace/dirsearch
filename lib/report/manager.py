@@ -17,7 +17,7 @@
 #  Author: Mauro Soria
 
 from lib.core.data import options
-from lib.core.settings import OUTPUT_FORMATS, STANDARD_PORTS
+from lib.core.settings import OUTPUT_FORMATS
 from lib.report.csv_report import CSVReport
 from lib.report.html_report import HTMLReport
 from lib.report.json_report import JSONReport
