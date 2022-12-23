@@ -16,24 +16,30 @@
 #
 #  Author: Mauro Soria
 
-from lib.core.settings import NEW_LINE
-from lib.reports.base import FileBaseReport
-from lib.utils.common import escape_csv
+import psycopg
+
+from lib.core.exceptions import InvalidURLException
+from lib.report.factory import BaseReport, FormattingMixin, ResultsManagementMixin, SQLReportMixin
 
 
-class CSVReport(FileBaseReport):
-    def get_header(self):
-        return "URL,Status,Size,Content Type,Redirection" + NEW_LINE
+class PostgreSQLReport(FormattingMixin, ResultsManagementMixin, SQLReportMixin, BaseReport):
+    __format__ = "sql"
+    __extension__ = None
 
-    def generate(self, entries):
-        output = self.get_header()
+    # Cache connection
+    _conn = None
 
-        for entry in entries:
-            output += f"{entry.url},{entry.status},{entry.length},{entry.type},"
+    def is_valid(self, url):
+        return url.startswith(("postgres://", "postgresql://"))
 
-            if entry.redirect:
-                output += f'"{escape_csv(entry.redirect)}"'
+    def connect(self, url):
+        if not self._conn:
+            if not self.is_valid(url):
+                raise InvalidURLException("Provided PostgreSQL URL does not start with postgresql://")
 
-            output += NEW_LINE
+            self._conn = psycopg.connect(url)
 
-        return output
+        return self._conn
+
+    def cleanup(self):
+        self._conn.close()

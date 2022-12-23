@@ -16,28 +16,13 @@
 #
 #  Author: Mauro Soria
 
-import mysql.connector
-
-from mysql.connector.constants import SQLMode
-from urllib.parse import urlparse
-
-from lib.core.exceptions import InvalidURLException
-from lib.reports.base import SQLBaseReport
+from lib.core.settings import NEW_LINE
+from lib.report.factory import BaseReport, FileReportMixin, FormattingMixin, ResultsManagementMixin
 
 
-class MySQLReport(SQLBaseReport):
-    def connect(self, url):
-        parsed = urlparse(url)
+class SimpleReport(FileReportMixin, FormattingMixin, ResultsManagementMixin, BaseReport):
+    __format__ = "simple"
+    __extension__ = "txt"
 
-        if not parsed.scheme == "mysql":
-            raise InvalidURLException("Provided MySQL URL does not start with mysql://")
-
-        self.conn = mysql.connector.connect(
-            host=parsed.hostname,
-            port=parsed.port or 3306,
-            user=parsed.username,
-            password=parsed.password,
-            database=parsed.path.lstrip("/"),
-        )
-        self.conn.sql_mode = [SQLMode.ANSI_QUOTES]
-        self.cursor = self.conn.cursor()
+    def generate(self, results):
+        return NEW_LINE.join(result.url for result in results)

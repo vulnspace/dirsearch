@@ -16,16 +16,19 @@
 #
 #  Author: Mauro Soria
 
+import time
+
 from lib.core.settings import (
     DEFAULT_ENCODING, ITER_CHUNK_SIZE,
     MAX_RESPONSE_SIZE, UNKNOWN,
 )
 from lib.parse.url import clean_path, parse_path
-from lib.utils.common import is_binary
+from lib.utils.common import human_size, is_binary
 
 
 class Response:
     def __init__(self, response):
+        self.time = time.strftime("%Y-%m-%d %H:%M:%S")
         self.url = response.url
         self.full_path = parse_path(response.url)
         self.path = clean_path(self.full_path)
@@ -62,6 +65,10 @@ class Response:
             return int(self.headers.get("content-length"))
         except TypeError:
             return len(self.body)
+
+    @property
+    def size(self):
+        return human_size(self.length)
 
     def __hash__(self):
         return hash(self.body)
