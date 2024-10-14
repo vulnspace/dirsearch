@@ -129,7 +129,7 @@ class Fuzzer(object):
         page_clusters = list(self.responsesBySize.values())
         parsers = [page["parser"] for pages in page_clusters for page in pages if "parser" in page]
         reason = self.getScannerFor(path).scan(path, response, parsers)
-        if reason:
+        if reason is not False:
             result = (None if response.status == 404 else response.status)
 
         return result, response, reason
