@@ -148,25 +148,29 @@ class Fuzzer(object):
         self.runningThreadsCount -= 1
 
     def thread_proc(self):
+        """
+        The main flow method. Performs path scanning, response clustering, and page comparison.
+        Controls the pauses and continuation of the flow.
+        """
         self.playEvent.wait()
         try:
             path = next(self.dictionary)
             while path is not None:
                 try:
-                    result = self.process_scan(path)
+                    result = self.perform_scan(path)  # Performing a scan for the current path
 
                     if result.status is not None:
-                        size = self.cluster_response_by_size(result.response)
-                        was_found = self.check_similar_pages(size, result)
+                        size = self.get_cluster_size(result.response)  # Clustering the response by size
+                        was_found = self.find_similar_page(size, result)  # Checking for similar pages
 
                         if not was_found:
-                            self.add_new_match(result)
+                            self.store_match(result)  # Adding a new match if no similar pages are found
 
                     else:
-                        self.invoke_callbacks(self.notFoundCallbacks, result)
+                        self.trigger_callbacks(self.notFoundCallbacks, result)  # Calling callbacks for undiscovered pages
 
                 except RequestException as e:
-                    self.invoke_error_callbacks(path, e)
+                    self.handle_request_error(path, e)
 
                 finally:
                     del result.status
@@ -183,24 +187,36 @@ class Fuzzer(object):
         finally:
             self.stopThread()
 
-    def process_scan(self, path):
+    def perform_scan(self, path):
+        """
+        Performs a scan along the specified path, returns the scan result as a Path object.
+        """
         status, response, reason = self.scan(path)
         return Path(path=path, status=status, response=response, ratio=reason)
 
-    def cluster_response_by_size(self, response):
+    def get_cluster_size(self, response):
+        """
+        Clusters the response based on its size. Returns the size rounded to the nearest thousand bytes.
+        """
         size = Response.sizeBytes(response)
         return int(float(size) / 1000) * 1000
 
-    def check_similar_pages(self, size, result):
+    def find_similar_page(self, size, result):
+        """
+        Checks if there are pages in the cluster with a similar size, and compares them with the current page.
+        If a similar page is found, it returns True, otherwise False.
+        """
         was_found = False
 
         with self.ratioCheckLock:
             if size in self.responsesBySize:
                 for page in self.responsesBySize[size]:
+                    # Comparing pages with or without a parser
                     was_found = self.compare_pages(page, result.path, result.response)
                     if was_found:
                         break
 
+            # If no similar pages are found, add a new one
             if not was_found:
                 self.responsesBySize.setdefault(size, []).append({
                     "response": result.response,
@@ -211,6 +227,10 @@ class Fuzzer(object):
         return was_found
 
     def compare_pages(self, page, path, response):
+        """
+        Compares the current page with a previously saved one. If the pages are similar, saves the comparison
+        results in a page object. Returns True if the pages are similar, otherwise False.
+        """
         if "parser" not in page:
             prev_response = page["response"]
             parser = DynamicContentParser(self.requester, path, prev_response.body, response.body)
@@ -230,15 +250,24 @@ class Fuzzer(object):
 
         return False
 
-    def add_new_match(self, result):
+    def store_match(self, result):
+        """
+        Adds a new match to the matches list and calls callbacks for the found pages.
+        """
         self.matches.append(result)
-        self.invoke_callbacks(self.matchCallbacks, result)
+        self.trigger_callbacks(self.matchCallbacks, result)
 
-    def invoke_callbacks(self, callbacks, result):
+    def trigger_callbacks(self, callbacks, result):
+        """
+        A universal method for calling a list of callbacks with the passed result.
+        """
         for callback in callbacks:
             callback(result)
 
-    def invoke_error_callbacks(self, path, e):
+    def handle_request_error(self, path, e):
+        """
+        Calling callbacks in case of request errors. Passes the path and error message.
+        """
         for callback in self.errorCallbacks:
             callback(path, e.args[0]['message'])
 
