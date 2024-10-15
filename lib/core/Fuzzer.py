@@ -153,80 +153,26 @@ class Fuzzer(object):
             path = next(self.dictionary)
             while path is not None:
                 try:
-                    status, response, reason = self.scan(path)
-                    result = Path(path=path, status=status, response=response, ratio=reason)
+                    result = self.process_scan(path)
 
-                    if status is not None:
-                        size = Response.sizeBytes(response)
-                        # кластеризация, делим побайтно
-                        size = int(float(size)/1000)*1000
-                        was_found = False
-
-                        with self.ratioCheckLock:
-                            if size in self.responsesBySize:
-                                for page in self.responsesBySize[size]:
-                                    if not "parser" in page:
-                                        # если мы нашли вторую страницу с похожим размером, то сравниваем ее с первой
-                                        prev_response = page["response"]
-                                        parser = DynamicContentParser(self.requester, path, prev_response.body, response.body)
-                                        ratio = parser.comparisonRatio
-                                        # сверяем схожесть второй найденной страницы такого же размера
-                                        if ratio >= Scanner.RATIO:
-                                            # если похожа, то сохраняем парсер для дальнейшего использования
-                                            # и все остальные детали сравнения
-                                            page["parser"] = parser
-                                            page["ratio"] = ratio
-                                            page["second_path"] = path
-                                            page["second_thread"] = threading.get_ident()
-                                            # убираем страницу из результатов
-                                            was_found = True
-                                            break
-                                    else:
-                                        # сверяем схожесть страниц такого же размера, обработанных реквестером до появления парсера
-                                        if page["parser"].compareTo(response.body) >= Scanner.RATIO:
-                                            was_found = True
-                                            break
-                                # если после проверки парсерами по кластеру страница не оказалась похожа ни на что
-                                # то добавляем её в кластер
-                                if not was_found:
-                                    self.responsesBySize[size].append({
-                                            "response": response,
-                                            "path": path,
-                                            "thread": threading.get_ident()
-                                        })
-
-                            else:
-                                # впервые найденная страница такого размера
-                                self.responsesBySize[size] = [{
-                                        "response": response,
-                                        "path": path,
-                                        "thread": threading.get_ident()
-                                    }]
+                    if result.status is not None:
+                        size = self.cluster_response_by_size(result.response)
+                        was_found = self.check_similar_pages(size, result)
 
                         if not was_found:
-                            self.matches.append(result)
+                            self.add_new_match(result)
 
-                            for callback in self.matchCallbacks:
-                                callback(result)
                     else:
-                        for callback in self.notFoundCallbacks:
-                            callback(result)
-                    del status
-                    del response
+                        self.invoke_callbacks(self.notFoundCallbacks, result)
 
                 except RequestException as e:
-
-                    for callback in self.errorCallbacks:
-                        callback(path, e.args[0]['message'])
-
-                    continue
+                    self.invoke_error_callbacks(path, e)
 
                 finally:
-                    if not self.playEvent.isSet():
-                        self.pausedSemaphore.release()
-                        self.playEvent.wait()
+                    del result.status
+                    del result.response
 
-                    path = next(self.dictionary)  # Raises StopIteration when finishes
+                    path = self.handle_pause_and_continue()
 
                     if not self.running:
                         break
@@ -236,3 +182,69 @@ class Fuzzer(object):
 
         finally:
             self.stopThread()
+
+    def process_scan(self, path):
+        status, response, reason = self.scan(path)
+        return Path(path=path, status=status, response=response, ratio=reason)
+
+    def cluster_response_by_size(self, response):
+        size = Response.sizeBytes(response)
+        return int(float(size) / 1000) * 1000
+
+    def check_similar_pages(self, size, result):
+        was_found = False
+
+        with self.ratioCheckLock:
+            if size in self.responsesBySize:
+                for page in self.responsesBySize[size]:
+                    was_found = self.compare_pages(page, result.path, result.response)
+                    if was_found:
+                        break
+
+            if not was_found:
+                self.responsesBySize.setdefault(size, []).append({
+                    "response": result.response,
+                    "path": result.path,
+                    "thread": threading.get_ident()
+                })
+
+        return was_found
+
+    def compare_pages(self, page, path, response):
+        if "parser" not in page:
+            prev_response = page["response"]
+            parser = DynamicContentParser(self.requester, path, prev_response.body, response.body)
+            ratio = parser.comparisonRatio
+
+            if ratio >= Scanner.RATIO:
+                page.update({
+                    "parser": parser,
+                    "ratio": ratio,
+                    "second_path": path,
+                    "second_thread": threading.get_ident()
+                })
+                return True
+        else:
+            if page["parser"].compareTo(response.body) >= Scanner.RATIO:
+                return True
+
+        return False
+
+    def add_new_match(self, result):
+        self.matches.append(result)
+        self.invoke_callbacks(self.matchCallbacks, result)
+
+    def invoke_callbacks(self, callbacks, result):
+        for callback in callbacks:
+            callback(result)
+
+    def invoke_error_callbacks(self, path, e):
+        for callback in self.errorCallbacks:
+            callback(path, e.args[0]['message'])
+
+    def handle_pause_and_continue(self):
+        if not self.playEvent.isSet():
+            self.pausedSemaphore.release()
+            self.playEvent.wait()
+
+        return next(self.dictionary)  # Raises StopIteration when finishes
