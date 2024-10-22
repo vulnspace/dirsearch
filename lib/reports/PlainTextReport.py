@@ -25,7 +25,7 @@ class PlainTextReport(BaseReport):
     def generate(self):
         result = ''
 
-        for path, status, contentLength in self.pathList:
+        for path, status, contentLength, response_body in self.pathList:
             result += '{0}  '.format(status)
             result += '{0}  '.format(FileUtils.sizeHuman(contentLength).rjust(6, ' '))
             result += '{0}://{1}:{2}/'.format(self.protocol, self.host, self.port)

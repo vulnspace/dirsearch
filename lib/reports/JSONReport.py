@@ -17,6 +17,7 @@
 #  Author: Mauro Soria
 
 import json
+import base64
 
 from lib.reports import *
 
@@ -25,21 +26,25 @@ class JSONReport(BaseReport):
 
     def addPath(self, path, status, response):
         contentLength = None
+        response_body = None
 
         try:
             contentLength = int(response.headers['content-length'])
+            response_body = response.body
 
         except (KeyError, ValueError):
             contentLength = len(response.body)
 
-        self.pathList.append((path, status, contentLength, response.redirect))
+        self.pathList.append((path, status, contentLength, response.redirect, response_body))
 
     def generate(self):
         headerName = '{0}://{1}:{2}/{3}'.format(self.protocol, self.host, self.port, self.basePath)
         result = {headerName: []}
 
-        for path, status, contentLength, redirect in self.pathList:
-            entry = {'status': status, 'path': path, 'content-length': contentLength, 'redirect': redirect}
+        for path, status, contentLength, redirect, response_body in self.pathList:
+            encoded_body = base64.b64encode(response_body).decode('utf-8')
+            entry = {'status': status, 'path': path, 'content-length': contentLength, 'redirect': redirect,
+                     'response': encoded_body}
             result[headerName].append(entry)
 
         return json.dumps(result, sort_keys=True, indent=4)

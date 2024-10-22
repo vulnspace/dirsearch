@@ -36,14 +36,16 @@ class BaseReport(object):
 
     def addPath(self, path, status, response):
         contentLength = None
+        response_body = None
 
         try:
             contentLength = int(response.headers['content-length'])
+            response_body = str(response.body)
 
         except (KeyError, ValueError):
             contentLength = len(response.body)
 
-        self.pathList.append((path, status, contentLength))
+        self.pathList.append((path, status, contentLength, response_body))
 
     def open(self):
         from os import name as os_name
