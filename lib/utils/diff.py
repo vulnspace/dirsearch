@@ -74,12 +74,14 @@ class DynamicContentParser:
                     return False
                 was_found = self.compare_pages(page, response)
                 if was_found:
+                    page["clustered_pages"].append(response.path)
                     return True
         # If no similar pages are found, add a new one
         if not was_found:
             self.responsesBySize.setdefault(size, []).append({
                 "response": response.content,
-                "path": response.path
+                "path": response.path,
+                "clustered_pages": []
             })
         return was_found
 
