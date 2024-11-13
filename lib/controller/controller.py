@@ -63,6 +63,7 @@ from lib.parse.rawrequest import parse_raw
 from lib.parse.url import clean_path, parse_path
 from lib.report.manager import ReportManager
 from lib.utils.common import lstrip_once
+from lib.utils.crawl import Crawler
 from lib.utils.file import FileUtils
 from lib.utils.schemedet import detect_scheme
 from lib.view.terminal import interface
@@ -204,7 +205,12 @@ class Controller:
         self.requester = Requester()
         if options["async_mode"]:
             self.loop = asyncio.new_event_loop()
-            self.loop.add_signal_handler(signal.SIGINT, self.handle_pause)
+            try:
+                self.loop.add_signal_handler(signal.SIGINT, self.handle_pause)
+            except NotImplementedError:
+                # Windows
+                signal.signal(signal.SIGINT, self.handle_pause)
+                signal.signal(signal.SIGTERM, self.handle_pause)
 
         while options["urls"]:
             url = options["urls"][0]
@@ -269,7 +275,7 @@ class Controller:
 
                 if not self.old_session:
                     current_time = time.strftime("%H:%M:%S")
-                    msg = f"{NEW_LINE}[{current_time}] Starting: {current_directory}"
+                    msg = f"{NEW_LINE}[{current_time}] Scanning: {current_directory}"
 
                     interface.warning(msg)
 
@@ -400,6 +406,13 @@ class Controller:
             else:
                 self.requester.request(response.full_path, proxy=options["replay_proxy"])
 
+        if options["crawl"]:
+            for path in Crawler.crawl(response):
+                if not self.dictionary.is_valid(path):
+                    continue
+                path = lstrip_once(path, self.base_path)
+                self.dictionary.add_extra(path)
+
     def update_progress_bar(self, response: BaseResponse) -> None:
         jobs_count = (
             # Jobs left for unscanned targets
@@ -507,13 +520,12 @@ class Controller:
                         raise SkipTargetInterrupt(
                             "Runtime exceeded the maximum set by the user"
                         )
+                    time.sleep(0.5)
 
                 break
 
             except KeyboardInterrupt:
                 self.handle_pause()
-
-            time.sleep(0.3)
 
     def add_directory(self, path: str) -> None:
         """Add directory to the recursion queue"""
