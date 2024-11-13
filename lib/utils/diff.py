@@ -20,7 +20,7 @@ import difflib
 import re
 
 from lib.utils.common import lstrip_once
-
+from lib.core.settings import MAX_MATCH_RATIO
 
 class DynamicContentParser:
     def __init__(self, content1, content2):
