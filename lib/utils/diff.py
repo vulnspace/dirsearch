@@ -104,9 +104,10 @@ class DynamicContentParser:
         results in a page object. Returns True if the pages are similar, otherwise False.
         """
         match_ratio = difflib.SequenceMatcher(None, page["response"], response.content).ratio()
+        base_ratio = self.max_match_ratio
         if response.length < 2000:
-            self.max_match_ratio -= 0.4
-        if match_ratio > self.max_match_ratio:
+            base_ratio -= 0.4
+        if match_ratio > base_ratio:
             return True
         return False
 
