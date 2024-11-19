@@ -20,12 +20,13 @@ import difflib
 import re
 
 from lib.utils.common import lstrip_once
-from lib.core.settings import MAX_MATCH_RATIO
+
 
 class DynamicContentParser:
     def __init__(self, content1, content2):
         self._static_patterns = None
         self.responsesBySize = {}
+        self.max_match_ratio = 0.90
         self._differ = difflib.Differ()
         self._is_static = content1 == content2
         self._base_content = content1
@@ -103,7 +104,9 @@ class DynamicContentParser:
         results in a page object. Returns True if the pages are similar, otherwise False.
         """
         match_ratio = difflib.SequenceMatcher(None, page["response"], response.content).ratio()
-        if match_ratio > MAX_MATCH_RATIO:
+        if response.length < 2000:
+            self.max_match_ratio -= 0.4
+        if match_ratio > self.max_match_ratio:
             return True
         return False
 
