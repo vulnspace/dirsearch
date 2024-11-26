@@ -25,6 +25,8 @@ from lib.utils.common import lstrip_once
 class DynamicContentParser:
     def __init__(self, content1, content2):
         self._static_patterns = None
+        self.responsesBySize = {}
+        self.max_match_ratio = 0.90
         self._differ = difflib.Differ()
         self._is_static = content1 == content2
         self._base_content = content1
@@ -66,6 +68,56 @@ class DynamicContentParser:
             return difflib.SequenceMatcher(None, self._base_content, content).ratio() > 0.75
 
         return True
+
+    def get_cluster_size(self, response):
+        """
+        Clusters the response based on its size. Returns the size rounded to the nearest thousand bytes.
+        """
+        size = DynamicContentParser.sizeBytes(response)
+        return int(float(size) / 1000) * 1000
+
+    def find_similar_page(self, response):
+        """
+        Checks if there are pages in the cluster with a similar size, and compares them with the current page.
+        If a similar page is found, it returns True, otherwise False.
+        """
+        size = self.get_cluster_size(response)
+        was_found = False
+        if size in self.responsesBySize:
+            for page in self.responsesBySize[size]:
+                if page["path"] == response.full_path:
+                    return False
+                was_found = self.compare_pages(page, response)
+                if was_found:
+                    return True
+        # If no similar pages are found, add a new one
+        if not was_found:
+            self.responsesBySize.setdefault(size, []).append({
+                "response": response.content,
+                "path": response.path
+            })
+        return was_found
+
+    def compare_pages(self, page, response):
+        """
+        Compares the current page with a previously saved one. If the pages are similar, saves the comparison
+        results in a page object. Returns True if the pages are similar, otherwise False.
+        """
+        match_ratio = difflib.SequenceMatcher(None, page["response"], response.content).ratio()
+        base_ratio = self.max_match_ratio
+        if response.length < 2000:
+            base_ratio -= 0.4
+        if match_ratio > base_ratio:
+            return True
+        return False
+
+    @staticmethod
+    def sizeBytes(response):
+        try:
+            size = int(response.headers['Content-Length'])
+        except (KeyError, ValueError):
+            size = len(response.content)
+        return size
 
     @staticmethod
     def get_static_patterns(patterns):
