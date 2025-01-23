@@ -2067,6 +2067,7 @@ actuator/;/statistics
 actuator/;/status
 actuator/;/threaddump
 actuator/;/trace
+actuator/prometheus;%2f..%2f..%2f
 actuator/auditevents
 actuator/auditLog
 actuator/beans
